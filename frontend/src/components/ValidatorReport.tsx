@@ -23,7 +23,6 @@ export const ValidatorReport: React.FC<ValidatorReportProps> = ({ isWalletConnec
     validatorAddress: '',
     message: '',
   });
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [isSubmittingOnChain, setIsSubmittingOnChain] = useState(false);
   const [isSimpleSubmitting, setIsSimpleSubmitting] = useState(false);
@@ -387,46 +386,7 @@ export const ValidatorReport: React.FC<ValidatorReportProps> = ({ isWalletConnec
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!isWalletConnected) {
-      setErrorMessage('Please connect your wallet first');
-      return;
-    }
 
-    if (!validateReport()) {
-      return;
-    }
-
-    setIsSubmitting(true);
-    setSubmitStatus('idle');
-    setErrorMessage(null);
-
-    try {
-      // Simulate report submission (not implemented yet)
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // In a real implementation, this would submit to a smart contract
-      console.log('Submitting report:', {
-        ...report,
-        reporter: walletAddress,
-        timestamp: new Date().toISOString(),
-      });
-
-      setSubmitStatus('success');
-      setReport({
-        validatorAddress: '',
-        message: '',
-      });
-    } catch (error) {
-      console.error('Error submitting report:', error);
-      setSubmitStatus('error');
-      setErrorMessage('Failed to submit report. Please try again.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   if (!isWalletConnected) {
     return (
@@ -526,7 +486,7 @@ export const ValidatorReport: React.FC<ValidatorReportProps> = ({ isWalletConnec
         </div>
       )}
 
-      <form onSubmit={handleSubmit}>
+      <div>
         <div style={{ marginBottom: '1rem' }}>
           <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
             Validator Address *
@@ -570,7 +530,7 @@ export const ValidatorReport: React.FC<ValidatorReportProps> = ({ isWalletConnec
           <button
             type="button"
             onClick={verifyReport}
-            disabled={isVerifying || isSubmitting}
+            disabled={isVerifying}
             style={{
               background: '#007bff',
               color: 'white',
@@ -589,7 +549,7 @@ export const ValidatorReport: React.FC<ValidatorReportProps> = ({ isWalletConnec
           <button
             type="button"
             onClick={simpleSubmit}
-            disabled={isSimpleSubmitting || isSubmitting || isVerifying}
+            disabled={isSimpleSubmitting || isVerifying}
             style={{
               background: '#dc3545',
               color: 'white',
@@ -625,41 +585,20 @@ export const ValidatorReport: React.FC<ValidatorReportProps> = ({ isWalletConnec
               {isSubmittingOnChain ? 'Submitting...' : 'Submit On-Chain'}
             </button>
           )}
-
-          <button
-            type="submit"
-            disabled={isSubmitting || isVerifying}
-            style={{
-              background: '#6c757d',
-              color: 'white',
-              border: 'none',
-              padding: '0.75rem 1.5rem',
-              borderRadius: '4px',
-              cursor: isSubmitting ? 'not-allowed' : 'pointer',
-              fontSize: '1rem',
-              fontWeight: 'bold',
-              opacity: isSubmitting ? 0.6 : 1,
-            }}
-          >
-            {isSubmitting ? 'Submitting...' : 'Submit Report (Legacy)'}
-          </button>
         </div>
-      </form>
+      </div>
 
       <div style={{ marginTop: '2rem', padding: '1rem', background: '#f8f9fa', borderRadius: '4px' }}>
         <h4 style={{ marginBottom: '0.5rem', color: '#333' }}>Instructions:</h4>
         <div style={{ fontSize: '0.875rem', color: '#666', lineHeight: '1.6' }}>
           <p style={{ marginBottom: '0.5rem' }}>
-            <strong>1. Verify Report:</strong> Sends the report to the verification service at localhost:4000
+            <strong>1. Verify Report:</strong> Sends the report to the verification service at localhost:4001
           </p>
           <p style={{ marginBottom: '0.5rem' }}>
             <strong>2. SimpleSubmit:</strong> Directly submits the report to the smart contract using submitMessageUnverified
           </p>
           <p style={{ marginBottom: '0.5rem' }}>
             <strong>3. Submit On-Chain:</strong> Submits the verified report to the blockchain (not implemented yet)
-          </p>
-          <p style={{ marginBottom: '0.5rem' }}>
-            <strong>4. Submit Report (Legacy):</strong> Direct submission without verification
           </p>
         </div>
       </div>
