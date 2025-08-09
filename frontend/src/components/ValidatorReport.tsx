@@ -527,7 +527,8 @@ export const ValidatorReport: React.FC<ValidatorReportProps> = ({ isWalletConnec
         </div>
 
         <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-          <button
+          {/* Verify Report button hidden but logic preserved */}
+          {/* <button
             type="button"
             onClick={verifyReport}
             disabled={isVerifying}
@@ -544,7 +545,7 @@ export const ValidatorReport: React.FC<ValidatorReportProps> = ({ isWalletConnec
             }}
           >
             {isVerifying ? 'Verifying...' : 'Verify Report'}
-          </button>
+          </button> */}
 
           <button
             type="button"
@@ -592,13 +593,13 @@ export const ValidatorReport: React.FC<ValidatorReportProps> = ({ isWalletConnec
         <h4 style={{ marginBottom: '0.5rem', color: '#333' }}>Instructions:</h4>
         <div style={{ fontSize: '0.875rem', color: '#666', lineHeight: '1.6' }}>
           <p style={{ marginBottom: '0.5rem' }}>
-            <strong>1. Verify Report:</strong> Sends the report to the verification service at localhost:4001
+            <strong>1. SimpleSubmit:</strong> Directly submits the report to the smart contract using submitMessageUnverified
           </p>
           <p style={{ marginBottom: '0.5rem' }}>
-            <strong>2. SimpleSubmit:</strong> Directly submits the report to the smart contract using submitMessageUnverified
+            <strong>2. Submit On-Chain:</strong> Submits the verified report to the blockchain (not implemented yet)
           </p>
-          <p style={{ marginBottom: '0.5rem' }}>
-            <strong>3. Submit On-Chain:</strong> Submits the verified report to the blockchain (not implemented yet)
+          <p style={{ marginBottom: '0.5rem', fontSize: '0.8rem', color: '#888', fontStyle: 'italic' }}>
+            <strong>Note:</strong> Verify Report functionality is available in the code but hidden from the UI
           </p>
         </div>
       </div>
