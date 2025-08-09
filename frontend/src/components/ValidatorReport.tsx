@@ -30,10 +30,12 @@ export const ValidatorReport: React.FC<ValidatorReportProps> = ({ isWalletConnec
   const [verificationResult, setVerificationResult] = useState<VerificationResult | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // Update report fields
   const handleInputChange = (field: keyof ValidatorReport, value: string) => {
     setReport(prev => ({ ...prev, [field]: value }));
   };
 
+  // Basic validation for required fields
   const validateReport = (): boolean => {
     if (!report.validatorAddress.trim()) {
       setErrorMessage('Validator address is required');
@@ -46,25 +48,22 @@ export const ValidatorReport: React.FC<ValidatorReportProps> = ({ isWalletConnec
     return true;
   };
 
+  // Verification logic (hidden in UI but present)
   const verifyReport = async () => {
     if (!isWalletConnected || !walletAddress) {
       setErrorMessage('Please connect your wallet first');
       return;
     }
-
     if (!validateReport()) {
       return;
     }
-
     setIsVerifying(true);
     setErrorMessage(null);
 
     try {
-      const response = await fetch('http://localhost:4001/verify', {
+      const response = await fetch('http://localhost:4001/verify', { // Backend verification endpoint
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           validator_address: report.validatorAddress,
           nominator_address: walletAddress,
@@ -73,20 +72,20 @@ export const ValidatorReport: React.FC<ValidatorReportProps> = ({ isWalletConnec
       });
 
       const result = await response.json();
-      
+
       if (response.ok) {
         setVerificationResult({
           success: true,
           signature: result.signature,
           message: 'Report verified successfully!',
-          fullResponse: result
+          fullResponse: result,
         });
         setSubmitStatus('success');
       } else {
         setVerificationResult({
           success: false,
           message: result.error || 'Verification failed',
-          fullResponse: result
+          fullResponse: result,
         });
         setSubmitStatus('error');
       }
@@ -94,7 +93,7 @@ export const ValidatorReport: React.FC<ValidatorReportProps> = ({ isWalletConnec
       console.error('Error verifying report:', error);
       setVerificationResult({
         success: false,
-        message: 'Failed to connect to verification service'
+        message: 'Failed to connect to verification service',
       });
       setSubmitStatus('error');
     } finally {
@@ -102,19 +101,18 @@ export const ValidatorReport: React.FC<ValidatorReportProps> = ({ isWalletConnec
     }
   };
 
+  // Simulated on-chain submission (placeholder)
   const submitOnChain = async () => {
     if (!verificationResult?.success) {
       setErrorMessage('Please verify the report first');
       return;
     }
-
     setIsSubmittingOnChain(true);
     setErrorMessage(null);
 
     try {
-      // Simulate on-chain submission (not implemented yet)
+      // Simulate delay for on-chain submission
       await new Promise(resolve => setTimeout(resolve, 3000));
-      
       console.log('Submitting verified report on-chain:', {
         validatorAddress: report.validatorAddress,
         nominatorAddress: walletAddress,
@@ -125,10 +123,7 @@ export const ValidatorReport: React.FC<ValidatorReportProps> = ({ isWalletConnec
 
       setSubmitStatus('success');
       setVerificationResult(null);
-      setReport({
-        validatorAddress: '',
-        message: '',
-      });
+      setReport({ validatorAddress: '', message: '' });
     } catch (error) {
       console.error('Error submitting on-chain:', error);
       setSubmitStatus('error');
@@ -138,113 +133,110 @@ export const ValidatorReport: React.FC<ValidatorReportProps> = ({ isWalletConnec
     }
   };
 
+  // Simple direct submit to smart contract (without verification)
   const simpleSubmit = async () => {
     if (!isWalletConnected || !walletAddress) {
       setErrorMessage('Please connect your wallet first');
       return;
     }
-
     if (!validateReport()) {
       return;
     }
-
     setIsSimpleSubmitting(true);
     setErrorMessage(null);
     let nativeSymbol = 'ETH';
 
     try {
-      // Check if MetaMask is available
       if (typeof window.ethereum === 'undefined') {
         throw new Error('MetaMask is not installed. Please install MetaMask to use this feature.');
       }
 
-      // Full contract ABI (provided)
+      // Contract ABI with needed methods and events
       const contractABI = [
-        { "inputs": [], "stateMutability": "nonpayable", "type": "constructor" },
+        { inputs: [], stateMutability: 'nonpayable', type: 'constructor' },
         {
-          "anonymous": false,
-          "inputs": [
-            { "indexed": false, "internalType": "string", "name": "validator", "type": "string" },
-            { "indexed": false, "internalType": "string", "name": "nominator", "type": "string" },
-            { "indexed": false, "internalType": "string", "name": "msgText", "type": "string" }
+          anonymous: false,
+          inputs: [
+            { indexed: false, internalType: 'string', name: 'validator', type: 'string' },
+            { indexed: false, internalType: 'string', name: 'nominator', type: 'string' },
+            { indexed: false, internalType: 'string', name: 'msgText', type: 'string' }
           ],
-          "name": "MessageStored",
-          "type": "event"
+          name: 'MessageStored',
+          type: 'event'
         },
         {
-          "inputs": [ { "internalType": "uint256", "name": "index", "type": "uint256" } ],
-          "name": "getMessage",
-          "outputs": [
-            {
-              "components": [
-                { "internalType": "string", "name": "validator_address", "type": "string" },
-                { "internalType": "string", "name": "nominator_address", "type": "string" },
-                { "internalType": "string", "name": "msgText", "type": "string" }
-              ],
-              "internalType": "struct OracleVerifiedDelegation.Message",
-              "name": "",
-              "type": "tuple"
-            }
+          inputs: [{ internalType: 'uint256', name: 'index', type: 'uint256' }],
+          name: 'getMessage',
+          outputs: [{
+            components: [
+              { internalType: 'string', name: 'validator_address', type: 'string' },
+              { internalType: 'string', name: 'nominator_address', type: 'string' },
+              { internalType: 'string', name: 'msgText', type: 'string' }
+            ],
+            internalType: 'struct OracleVerifiedDelegation.Message',
+            name: '',
+            type: 'tuple'
+          }],
+          stateMutability: 'view',
+          type: 'function'
+        },
+        {
+          inputs: [],
+          name: 'getMessageCount',
+          outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+          stateMutability: 'view',
+          type: 'function'
+        },
+        {
+          inputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+          name: 'messages',
+          outputs: [
+            { internalType: 'string', name: 'validator_address', type: 'string' },
+            { internalType: 'string', name: 'nominator_address', type: 'string' },
+            { internalType: 'string', name: 'msgText', type: 'string' }
           ],
-          "stateMutability": "view",
-          "type": "function"
+          stateMutability: 'view',
+          type: 'function'
         },
         {
-          "inputs": [],
-          "name": "getMessageCount",
-          "outputs": [ { "internalType": "uint256", "name": "", "type": "uint256" } ],
-          "stateMutability": "view",
-          "type": "function"
+          inputs: [],
+          name: 'oracleAddress',
+          outputs: [{ internalType: 'address', name: '', type: 'address' }],
+          stateMutability: 'view',
+          type: 'function'
         },
         {
-          "inputs": [ { "internalType": "uint256", "name": "", "type": "uint256" } ],
-          "name": "messages",
-          "outputs": [
-            { "internalType": "string", "name": "validator_address", "type": "string" },
-            { "internalType": "string", "name": "nominator_address", "type": "string" },
-            { "internalType": "string", "name": "msgText", "type": "string" }
+          inputs: [
+            { internalType: 'string', name: 'validator_address', type: 'string' },
+            { internalType: 'string', name: 'nominator_address', type: 'string' },
+            { internalType: 'string', name: 'msgText', type: 'string' },
+            { internalType: 'bytes', name: 'signature', type: 'bytes' }
           ],
-          "stateMutability": "view",
-          "type": "function"
+          name: 'submitMessage',
+          outputs: [],
+          stateMutability: 'nonpayable',
+          type: 'function'
         },
         {
-          "inputs": [],
-          "name": "oracleAddress",
-          "outputs": [ { "internalType": "address", "name": "", "type": "address" } ],
-          "stateMutability": "view",
-          "type": "function"
-        },
-        {
-          "inputs": [
-            { "internalType": "string", "name": "validator_address", "type": "string" },
-            { "internalType": "string", "name": "nominator_address", "type": "string" },
-            { "internalType": "string", "name": "msgText", "type": "string" },
-            { "internalType": "bytes", "name": "signature", "type": "bytes" }
+          inputs: [
+            { internalType: 'string', name: 'validator_address', type: 'string' },
+            { internalType: 'string', name: 'nominator_address', type: 'string' },
+            { internalType: 'string', name: 'msgText', type: 'string' }
           ],
-          "name": "submitMessage",
-          "outputs": [],
-          "stateMutability": "nonpayable",
-          "type": "function"
-        },
-        {
-          "inputs": [
-            { "internalType": "string", "name": "validator_address", "type": "string" },
-            { "internalType": "string", "name": "nominator_address", "type": "string" },
-            { "internalType": "string", "name": "msgText", "type": "string" }
-          ],
-          "name": "submitMessageUnverified",
-          "outputs": [],
-          "stateMutability": "nonpayable",
-          "type": "function"
+          name: 'submitMessageUnverified',
+          outputs: [],
+          stateMutability: 'nonpayable',
+          type: 'function'
         }
       ];
 
-      // Create ethers provider/signer from an injected EVM provider that exposes accounts
+      // Detect injected Ethereum providers (MetaMask, Talisman)
       const injectedEthereum: any = (window as any).ethereum;
       const talismanEth: any = (window as any).talismanEth;
       const candidates = [injectedEthereum, talismanEth].filter(Boolean);
       let rawProvider: any = null;
       let accounts: string[] = [];
+
       for (const c of candidates) {
         try {
           const req = c.request
@@ -258,9 +250,11 @@ export const ValidatorReport: React.FC<ValidatorReportProps> = ({ isWalletConnec
           }
         } catch (_) {}
       }
+
       if (!rawProvider || accounts.length === 0) {
         throw new Error('No EVM accounts available. Please connect MetaMask/Talisman (EVM) and approve access.');
       }
+
       const provider = new ethers.providers.Web3Provider(rawProvider, 'any');
       const providerRequest = async (method: string, params?: any[]) => provider.send(method, params ?? []);
       const account = accounts[0];
@@ -272,7 +266,7 @@ export const ValidatorReport: React.FC<ValidatorReportProps> = ({ isWalletConnec
       const SEPOLIA_CHAIN_ID = '0xaa36a7';
       let contractAddress = '';
       let networkName = '';
-      // nativeSymbol assigned above; set based on network
+      nativeSymbol = 'ETH';
 
       if (finalChainId === WESTEND_ASSET_HUB_CHAIN_ID) {
         contractAddress = '0x42245eAe30399974e89D9DE9602403F23e980993';
@@ -294,27 +288,26 @@ export const ValidatorReport: React.FC<ValidatorReportProps> = ({ isWalletConnec
         ? [report.validatorAddress, walletAddress, report.message, verificationResult!.signature]
         : [report.validatorAddress, walletAddress, report.message];
 
-      // Preflight check to detect reverts and surface reason (especially on Sepolia)
+      // Preflight check to detect reverts and get revert reasons
       try {
-        // Preflight using callStatic to surface revert reasons
-        // @ts-ignore dynamic access for method name
+        // @ts-ignore dynamic method access
         await contract.callStatic[methodName](...methodArgs);
       } catch (preflightError: any) {
         const msg: string =
           preflightError?.data?.message ||
           preflightError?.message ||
           'Contract call reverted during preflight check';
-        // If on Sepolia, abort immediately with revert reason; Westend can be noisy so allow continue
+
         if (finalChainId === SEPOLIA_CHAIN_ID) {
+          // Abort on Sepolia if revert reason is present
           throw new Error(`Preflight failed: ${msg}`);
         } else {
           console.warn('Preflight eth_call failed on this network (continuing):', msg);
         }
       }
 
-      // Estimate gas via ethers
+      // Estimate gas
       let gasLimit: ethers.BigNumber | undefined;
-      let gasPrice: ethers.BigNumber | undefined;
       try {
         // @ts-ignore dynamic access
         gasLimit = await contract.estimateGas[methodName](...methodArgs);
@@ -327,6 +320,7 @@ export const ValidatorReport: React.FC<ValidatorReportProps> = ({ isWalletConnec
       }
 
       // Fetch gas price
+      let gasPrice: ethers.BigNumber | undefined;
       try {
         gasPrice = await provider.getGasPrice();
       } catch (e) {
@@ -344,7 +338,7 @@ export const ValidatorReport: React.FC<ValidatorReportProps> = ({ isWalletConnec
         chainId: finalChainId,
       });
 
-      // Send the transaction with ethers
+      // Send transaction
       // @ts-ignore dynamic method access
       const txResponse = await contract[methodName](...methodArgs, { gasLimit, gasPrice });
       console.log('Transaction sent:', txResponse.hash);
@@ -352,18 +346,12 @@ export const ValidatorReport: React.FC<ValidatorReportProps> = ({ isWalletConnec
       console.log('Transaction confirmed');
 
       setSubmitStatus('success');
-      setReport({
-        validatorAddress: '',
-        message: '',
-      });
-
+      setReport({ validatorAddress: '', message: '' });
     } catch (error: any) {
       console.error('Error submitting to smart contract:', error);
       setSubmitStatus('error');
-      
-      // Provide more specific error messages
+
       let errorMsg = 'Failed to submit to smart contract. Please try again.';
-      
       if (error.code === 4001) {
         errorMsg = 'Transaction was rejected by user.';
       } else if (error.code === -32603) {
@@ -372,22 +360,21 @@ export const ValidatorReport: React.FC<ValidatorReportProps> = ({ isWalletConnec
         errorMsg = `Insufficient funds for gas. Please add some ${nativeSymbol} to your account.`;
       } else if (error.message?.includes('Preflight failed')) {
         errorMsg = error.message;
-      } else if (error.message?.includes('gas estimation failed') || error.message?.includes('Gas estimation failed')) {
+      } else if (error.message?.toLowerCase().includes('gas estimation failed')) {
         errorMsg = 'Gas estimation failed. The contract may be reverting (e.g., Unauthorized). Check contract permissions.';
-      } else if (error.message?.includes('network')) {
+      } else if (error.message?.toLowerCase().includes('network')) {
         errorMsg = 'Network error. Please ensure you are connected to a supported EVM network.';
       } else if (error.message) {
         errorMsg = error.message;
       }
-      
+
       setErrorMessage(errorMsg);
     } finally {
       setIsSimpleSubmitting(false);
     }
   };
 
-
-
+  // UI if wallet not connected
   if (!isWalletConnected) {
     return (
       <div style={{
@@ -405,6 +392,7 @@ export const ValidatorReport: React.FC<ValidatorReportProps> = ({ isWalletConnec
     );
   }
 
+  // Main form UI
   return (
     <div style={{
       background: 'white',
@@ -426,7 +414,9 @@ export const ValidatorReport: React.FC<ValidatorReportProps> = ({ isWalletConnec
           marginBottom: '1rem',
           border: '1px solid #c3e6cb'
         }}>
-          {verificationResult?.success ? 'Report verified and submitted successfully!' : 'Report submitted successfully! Your report has been recorded on the blockchain.'}
+          {verificationResult?.success
+            ? 'Report verified and submitted successfully!'
+            : 'Report submitted successfully! Your report has been recorded on the blockchain.'}
         </div>
       )}
 
@@ -455,9 +445,8 @@ export const ValidatorReport: React.FC<ValidatorReportProps> = ({ isWalletConnec
           <div style={{ marginBottom: '0.5rem', fontWeight: 'bold' }}>
             {verificationResult.message}
           </div>
-          
           {verificationResult.fullResponse && (
-            <div style={{ 
+            <div style={{
               marginTop: '1rem',
               background: '#f8f9fa',
               padding: '1rem',
@@ -486,6 +475,7 @@ export const ValidatorReport: React.FC<ValidatorReportProps> = ({ isWalletConnec
         </div>
       )}
 
+      {/* Input fields */}
       <div>
         <div style={{ marginBottom: '1rem' }}>
           <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
@@ -494,7 +484,7 @@ export const ValidatorReport: React.FC<ValidatorReportProps> = ({ isWalletConnec
           <input
             type="text"
             value={report.validatorAddress}
-            onChange={(e) => handleInputChange('validatorAddress', e.target.value)}
+            onChange={e => handleInputChange('validatorAddress', e.target.value)}
             placeholder="Enter validator address (0x...)"
             style={{
               width: '100%',
@@ -512,7 +502,7 @@ export const ValidatorReport: React.FC<ValidatorReportProps> = ({ isWalletConnec
           </label>
           <textarea
             value={report.message}
-            onChange={(e) => handleInputChange('message', e.target.value)}
+            onChange={e => handleInputChange('message', e.target.value)}
             placeholder="Enter your report message..."
             rows={6}
             style={{
@@ -527,8 +517,9 @@ export const ValidatorReport: React.FC<ValidatorReportProps> = ({ isWalletConnec
         </div>
 
         <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-          {/* Verify Report button hidden but logic preserved */}
-          {/* <button
+          {/* Verify button is hidden but code preserved */}
+          {/*
+          <button
             type="button"
             onClick={verifyReport}
             disabled={isVerifying}
@@ -545,7 +536,8 @@ export const ValidatorReport: React.FC<ValidatorReportProps> = ({ isWalletConnec
             }}
           >
             {isVerifying ? 'Verifying...' : 'Verify Report'}
-          </button> */}
+          </button>
+          */}
 
           <button
             type="button"
@@ -589,6 +581,7 @@ export const ValidatorReport: React.FC<ValidatorReportProps> = ({ isWalletConnec
         </div>
       </div>
 
+      {/* Instructions */}
       <div style={{ marginTop: '2rem', padding: '1rem', background: '#f8f9fa', borderRadius: '4px' }}>
         <h4 style={{ marginBottom: '0.5rem', color: '#333' }}>Instructions:</h4>
         <div style={{ fontSize: '0.875rem', color: '#666', lineHeight: '1.6' }}>
@@ -605,4 +598,4 @@ export const ValidatorReport: React.FC<ValidatorReportProps> = ({ isWalletConnec
       </div>
     </div>
   );
-}; 
+};
