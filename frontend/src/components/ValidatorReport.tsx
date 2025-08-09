@@ -1,39 +1,5 @@
 import React, { useState } from 'react';
 import { ethers } from 'ethers';
-import { getValidatorPerformanceColor } from '../services/validatorStatistics'; // NEW
-
-// Suggestion logic (NEW)
-function getSuggestions(stats: any) {
-  if (!stats) return [];
-  const suggestions = [];
-  if (stats.performance < 50) {
-    suggestions.push({
-      severity: 'critical',
-      title: 'Low Performance',
-      description: 'Performance below 50%. Switch soon.'
-    });
-  } else if (stats.performance < 70) {
-    suggestions.push({
-      severity: 'warning',
-      title: 'Average Performance',
-      description: 'Monitor and consider other options.'
-    });
-  } else {
-    suggestions.push({
-      severity: 'info',
-      title: 'Good Performance',
-      description: 'No immediate action needed.'
-    });
-  }
-  if (stats.commission > 20) {
-    suggestions.push({
-      severity: 'warning',
-      title: 'High Commission',
-      description: 'Commission rate is high.'
-    });
-  }
-  return suggestions;
-}
 
 interface ValidatorReport {
   validatorAddress: string;
@@ -43,7 +9,6 @@ interface ValidatorReport {
 interface ValidatorReportProps {
   isWalletConnected: boolean;
   walletAddress: string | null;
-  stats?: any; // NEW optional prop
 }
 
 interface VerificationResult {
@@ -53,11 +18,7 @@ interface VerificationResult {
   fullResponse?: any;
 }
 
-export const ValidatorReport: React.FC<ValidatorReportProps> = ({
-  isWalletConnected,
-  walletAddress,
-  stats
-}) => {
+export const ValidatorReport: React.FC<ValidatorReportProps> = ({ isWalletConnected, walletAddress }) => {
   const [report, setReport] = useState<ValidatorReport>({
     validatorAddress: '',
     message: '',
@@ -112,7 +73,7 @@ export const ValidatorReport: React.FC<ValidatorReportProps> = ({
       });
 
       const result = await response.json();
-
+      
       if (response.ok) {
         setVerificationResult({
           success: true,
@@ -151,8 +112,9 @@ export const ValidatorReport: React.FC<ValidatorReportProps> = ({
     setErrorMessage(null);
 
     try {
+      // Simulate on-chain submission (not implemented yet)
       await new Promise(resolve => setTimeout(resolve, 3000));
-
+      
       console.log('Submitting verified report on-chain:', {
         validatorAddress: report.validatorAddress,
         nominatorAddress: walletAddress,
@@ -191,10 +153,12 @@ export const ValidatorReport: React.FC<ValidatorReportProps> = ({
     let nativeSymbol = 'ETH';
 
     try {
+      // Check if MetaMask is available
       if (typeof window.ethereum === 'undefined') {
         throw new Error('MetaMask is not installed. Please install MetaMask to use this feature.');
       }
 
+      // Full contract ABI (provided)
       const contractABI = [
         { "inputs": [], "stateMutability": "nonpayable", "type": "constructor" },
         {
@@ -275,6 +239,7 @@ export const ValidatorReport: React.FC<ValidatorReportProps> = ({
         }
       ];
 
+      // Create ethers provider/signer from an injected EVM provider that exposes accounts
       const injectedEthereum: any = (window as any).ethereum;
       const talismanEth: any = (window as any).talismanEth;
       const candidates = [injectedEthereum, talismanEth].filter(Boolean);
@@ -294,72 +259,134 @@ export const ValidatorReport: React.FC<ValidatorReportProps> = ({
         } catch (_) {}
       }
       if (!rawProvider || accounts.length === 0) {
-        throw new Error('No EVM accounts available. Please connect MetaMask/Talisman.');
+        throw new Error('No EVM accounts available. Please connect MetaMask/Talisman (EVM) and approve access.');
       }
       const provider = new ethers.providers.Web3Provider(rawProvider, 'any');
       const providerRequest = async (method: string, params?: any[]) => provider.send(method, params ?? []);
       const account = accounts[0];
       const signer = provider.getSigner(account);
 
+      // Determine network and contract address
       const finalChainId = await providerRequest('eth_chainId');
-      const WESTEND_ASSET_HUB_CHAIN_ID = '0x190f1b45';
+      const WESTEND_ASSET_HUB_CHAIN_ID = '0x190f1b45'; // 420420421
       const SEPOLIA_CHAIN_ID = '0xaa36a7';
       let contractAddress = '';
+      let networkName = '';
+      // nativeSymbol assigned above; set based on network
+
       if (finalChainId === WESTEND_ASSET_HUB_CHAIN_ID) {
         contractAddress = '0x42245eAe30399974e89D9DE9602403F23e980993';
+        networkName = 'EVM';
         nativeSymbol = 'WND';
       } else if (finalChainId === SEPOLIA_CHAIN_ID) {
         contractAddress = '0x21F440BF2c87FF692F1c9B8eE08300ffb1c8D87A';
+        networkName = 'Sepolia';
         nativeSymbol = 'ETH';
       } else {
-        throw new Error('Unsupported EVM network.');
+        throw new Error('Unsupported EVM network. Please switch to a supported network.');
       }
 
       const contract = new ethers.Contract(contractAddress, contractABI, signer);
+
       const hasVerified = !!verificationResult?.success && !!verificationResult?.signature;
       const methodName = hasVerified ? 'submitMessage' : 'submitMessageUnverified';
       const methodArgs = hasVerified
         ? [report.validatorAddress, walletAddress, report.message, verificationResult!.signature]
         : [report.validatorAddress, walletAddress, report.message];
 
+      // Preflight check to detect reverts and surface reason (especially on Sepolia)
       try {
-        // @ts-ignore
+        // Preflight using callStatic to surface revert reasons
+        // @ts-ignore dynamic access for method name
         await contract.callStatic[methodName](...methodArgs);
       } catch (preflightError: any) {
-        console.warn('Preflight failed', preflightError);
+        const msg: string =
+          preflightError?.data?.message ||
+          preflightError?.message ||
+          'Contract call reverted during preflight check';
+        // If on Sepolia, abort immediately with revert reason; Westend can be noisy so allow continue
+        if (finalChainId === SEPOLIA_CHAIN_ID) {
+          throw new Error(`Preflight failed: ${msg}`);
+        } else {
+          console.warn('Preflight eth_call failed on this network (continuing):', msg);
+        }
       }
 
-      let gasLimit;
-      let gasPrice;
+      // Estimate gas via ethers
+      let gasLimit: ethers.BigNumber | undefined;
+      let gasPrice: ethers.BigNumber | undefined;
       try {
-        // @ts-ignore
+        // @ts-ignore dynamic access
         gasLimit = await contract.estimateGas[methodName](...methodArgs);
-      } catch {
+      } catch (e) {
+        if (finalChainId === SEPOLIA_CHAIN_ID) {
+          throw new Error('Gas estimation failed. The contract may be reverting (e.g., Unauthorized).');
+        }
+        console.warn('estimateGas failed on this network, using default gas limit');
         gasLimit = ethers.BigNumber.from('500000');
       }
+
+      // Fetch gas price
       try {
         gasPrice = await provider.getGasPrice();
-      } catch {
+      } catch (e) {
+        console.warn('getGasPrice failed, using 1 wei as fallback');
         gasPrice = ethers.BigNumber.from(1);
       }
 
-      // @ts-ignore
+      console.log('Submitting to smart contract via ethers:', {
+        contractAddress,
+        method: methodName,
+        args: methodArgs,
+        gasLimit: gasLimit?.toString(),
+        gasPrice: gasPrice?.toString(),
+        network: networkName,
+        chainId: finalChainId,
+      });
+
+      // Send the transaction with ethers
+      // @ts-ignore dynamic method access
       const txResponse = await contract[methodName](...methodArgs, { gasLimit, gasPrice });
+      console.log('Transaction sent:', txResponse.hash);
       await txResponse.wait();
+      console.log('Transaction confirmed');
 
       setSubmitStatus('success');
       setReport({
         validatorAddress: '',
         message: '',
       });
+
     } catch (error: any) {
-      console.error('Error submitting:', error);
+      console.error('Error submitting to smart contract:', error);
       setSubmitStatus('error');
-      setErrorMessage(error.message || 'Failed to submit.');
+      
+      // Provide more specific error messages
+      let errorMsg = 'Failed to submit to smart contract. Please try again.';
+      
+      if (error.code === 4001) {
+        errorMsg = 'Transaction was rejected by user.';
+      } else if (error.code === -32603) {
+        errorMsg = 'Internal JSON-RPC error. The contract might not be deployed at this address or it reverted. Check console for details.';
+      } else if (error.message?.includes('insufficient funds')) {
+        errorMsg = `Insufficient funds for gas. Please add some ${nativeSymbol} to your account.`;
+      } else if (error.message?.includes('Preflight failed')) {
+        errorMsg = error.message;
+      } else if (error.message?.includes('gas estimation failed') || error.message?.includes('Gas estimation failed')) {
+        errorMsg = 'Gas estimation failed. The contract may be reverting (e.g., Unauthorized). Check contract permissions.';
+      } else if (error.message?.includes('network')) {
+        errorMsg = 'Network error. Please ensure you are connected to a supported EVM network.';
+      } else if (error.message) {
+        errorMsg = error.message;
+      }
+      
+      setErrorMessage(errorMsg);
     } finally {
       setIsSimpleSubmitting(false);
     }
   };
+
+
 
   if (!isWalletConnected) {
     return (
@@ -399,9 +426,7 @@ export const ValidatorReport: React.FC<ValidatorReportProps> = ({
           marginBottom: '1rem',
           border: '1px solid #c3e6cb'
         }}>
-          {verificationResult?.success
-            ? 'Report verified and submitted successfully!'
-            : 'Report submitted successfully! Your report has been recorded on the blockchain.'}
+          {verificationResult?.success ? 'Report verified and submitted successfully!' : 'Report submitted successfully! Your report has been recorded on the blockchain.'}
         </div>
       )}
 
@@ -430,21 +455,29 @@ export const ValidatorReport: React.FC<ValidatorReportProps> = ({
           <div style={{ marginBottom: '0.5rem', fontWeight: 'bold' }}>
             {verificationResult.message}
           </div>
+          
           {verificationResult.fullResponse && (
-            <div style={{
+            <div style={{ 
               marginTop: '1rem',
               background: '#f8f9fa',
               padding: '1rem',
               borderRadius: '4px',
               border: '1px solid #dee2e6'
             }}>
-              <div style={{
-                marginBottom: '0.5rem', fontWeight: 'bold', fontSize: '0.875rem'
-              }}>API Response:</div>
+              <div style={{ marginBottom: '0.5rem', fontWeight: 'bold', fontSize: '0.875rem' }}>
+                API Response:
+              </div>
               <pre style={{
-                background: '#f8f9fa', padding: '0.75rem', borderRadius: '4px',
-                border: '1px solid #dee2e6', fontSize: '0.75rem', overflow: 'auto',
-                whiteSpace: 'pre-wrap', wordBreak: 'break-word', margin: 0, fontFamily: 'monospace'
+                background: '#f8f9fa',
+                padding: '0.75rem',
+                borderRadius: '4px',
+                border: '1px solid #dee2e6',
+                fontSize: '0.75rem',
+                overflow: 'auto',
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+                margin: 0,
+                fontFamily: 'monospace'
               }}>
                 {JSON.stringify(verificationResult.fullResponse, null, 2)}
               </pre>
@@ -464,8 +497,11 @@ export const ValidatorReport: React.FC<ValidatorReportProps> = ({
             onChange={(e) => handleInputChange('validatorAddress', e.target.value)}
             placeholder="Enter validator address (0x...)"
             style={{
-              width: '100%', padding: '0.75rem', border: '1px solid #ddd',
-              borderRadius: '4px', fontSize: '0.875rem'
+              width: '100%',
+              padding: '0.75rem',
+              border: '1px solid #ddd',
+              borderRadius: '4px',
+              fontSize: '0.875rem'
             }}
           />
         </div>
@@ -480,23 +516,51 @@ export const ValidatorReport: React.FC<ValidatorReportProps> = ({
             placeholder="Enter your report message..."
             rows={6}
             style={{
-              width: '100%', padding: '0.75rem', border: '1px solid #ddd',
-              borderRadius: '4px', fontSize: '0.875rem', resize: 'vertical'
+              width: '100%',
+              padding: '0.75rem',
+              border: '1px solid #ddd',
+              borderRadius: '4px',
+              fontSize: '0.875rem',
+              resize: 'vertical'
             }}
           />
         </div>
 
         <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+          {/* Verify Report button hidden but logic preserved */}
+          {/* <button
+            type="button"
+            onClick={verifyReport}
+            disabled={isVerifying}
+            style={{
+              background: '#007bff',
+              color: 'white',
+              border: 'none',
+              padding: '0.75rem 1.5rem',
+              borderRadius: '4px',
+              cursor: isVerifying ? 'not-allowed' : 'pointer',
+              fontSize: '1rem',
+              fontWeight: 'bold',
+              opacity: isVerifying ? 0.6 : 1,
+            }}
+          >
+            {isVerifying ? 'Verifying...' : 'Verify Report'}
+          </button> */}
+
           <button
             type="button"
             onClick={simpleSubmit}
             disabled={isSimpleSubmitting || isVerifying}
             style={{
-              background: '#dc3545', color: 'white', border: 'none',
-              padding: '0.75rem 1.5rem', borderRadius: '4px',
+              background: '#dc3545',
+              color: 'white',
+              border: 'none',
+              padding: '0.75rem 1.5rem',
+              borderRadius: '4px',
               cursor: isSimpleSubmitting ? 'not-allowed' : 'pointer',
-              fontSize: '1rem', fontWeight: 'bold',
-              opacity: isSimpleSubmitting ? 0.6 : 1
+              fontSize: '1rem',
+              fontWeight: 'bold',
+              opacity: isSimpleSubmitting ? 0.6 : 1,
             }}
           >
             {isSimpleSubmitting ? 'Submitting...' : 'SimpleSubmit'}
@@ -508,11 +572,15 @@ export const ValidatorReport: React.FC<ValidatorReportProps> = ({
               onClick={submitOnChain}
               disabled={isSubmittingOnChain}
               style={{
-                background: '#28a745', color: 'white', border: 'none',
-                padding: '0.75rem 1.5rem', borderRadius: '4px',
+                background: '#28a745',
+                color: 'white',
+                border: 'none',
+                padding: '0.75rem 1.5rem',
+                borderRadius: '4px',
                 cursor: isSubmittingOnChain ? 'not-allowed' : 'pointer',
-                fontSize: '1rem', fontWeight: 'bold',
-                opacity: isSubmittingOnChain ? 0.6 : 1
+                fontSize: '1rem',
+                fontWeight: 'bold',
+                opacity: isSubmittingOnChain ? 0.6 : 1,
               }}
             >
               {isSubmittingOnChain ? 'Submitting...' : 'Submit On-Chain'}
@@ -524,45 +592,17 @@ export const ValidatorReport: React.FC<ValidatorReportProps> = ({
       <div style={{ marginTop: '2rem', padding: '1rem', background: '#f8f9fa', borderRadius: '4px' }}>
         <h4 style={{ marginBottom: '0.5rem', color: '#333' }}>Instructions:</h4>
         <div style={{ fontSize: '0.875rem', color: '#666', lineHeight: '1.6' }}>
-          <p><strong>1. SimpleSubmit:</strong> Directly submits the report to the contract.</p>
-          <p><strong>2. Submit On-Chain:</strong> Submits the verified report to the blockchain.</p>
-          <p style={{ fontSize: '0.8rem', color: '#888', fontStyle: 'italic' }}>
-            <strong>Note:</strong> Verify Report code exists but its button is hidden in UI.
+          <p style={{ marginBottom: '0.5rem' }}>
+            <strong>1. SimpleSubmit:</strong> Directly submits the report to the smart contract using submitMessageUnverified
+          </p>
+          <p style={{ marginBottom: '0.5rem' }}>
+            <strong>2. Submit On-Chain:</strong> Submits the verified report to the blockchain (not implemented yet)
+          </p>
+          <p style={{ marginBottom: '0.5rem', fontSize: '0.8rem', color: '#888', fontStyle: 'italic' }}>
+            <strong>Note:</strong> Verify Report functionality is available in the code but hidden from the UI
           </p>
         </div>
       </div>
-
-      {/* --- NEW Quick Actions --- */}
-      <div style={{ marginTop: '2.5rem' }}>
-        <h3>Performance Metrics</h3>
-        <div>
-          <strong>Total Era Points:</strong> {stats?.totalEraPoints ?? '-'}<br />
-          <strong>Average Era Points:</strong> {stats?.averageEraPoints ?? '-'}<br />
-          <strong>Last Block Points:</strong> {stats?.lastEraPoints ?? '-'}<br />
-          <strong>Performance:</strong>{' '}
-          <span style={{ color: stats ? getValidatorPerformanceColor(stats.performance) : '#333' }}>
-            {stats ? stats.performance.toFixed(1) : '-'}%
-          </span>
-        </div>
-        {stats && (
-          <div style={{
-            marginTop: '1.2rem', padding: '0.9rem',
-            background: '#f6faff', borderRadius: '5px',
-            border: '1px solid #d0e0ef'
-          }}>
-            <h4>Quick Actions</h4>
-            {getSuggestions(stats).map((s, idx) => (
-              <div key={idx} style={{
-                borderLeft: `4px solid ${s.severity === 'critical' ? 'red' : s.severity === 'warning' ? 'orange' : '#007bff'}`,
-                background: '#f9f9fa', padding: '0.5rem 0.8rem',
-                marginBottom: 8, borderRadius: 3
-              }}>
-                <strong>{s.title}</strong> — <span>{s.description}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
     </div>
   );
-};
+}; 
