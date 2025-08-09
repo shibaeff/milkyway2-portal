@@ -24,17 +24,12 @@ export const AllValidators = () => {
       <Page.Row>
         <CardWrapper>
           {!isReady ? (
-            <div className="item">
-              <h3>{t('connecting')}...</h3>
-            </div>
+            <div className="item"><h3>{t('connecting')}...</h3></div>
           ) : (
             <>
-              {validators.length === 0 && (
-                <div className="item">
-                  <h3>{t('fetchingValidators')}...</h3>
-                </div>
-              )}
-              {validators.length > 0 && (
+              {validators.length === 0 ? (
+                <div className="item"><h3>{t('fetchingValidators')}...</h3></div>
+              ) : (
                 <ValidatorList
                   bondFor="nominator"
                   validators={validators}
@@ -53,7 +48,7 @@ export const AllValidators = () => {
                   allowMoreCols
                   allowFilters
                   allowSearch
-                  itemsPerPage={50}
+                  itemsPerPage={100}
                 />
               )}
             </>
