@@ -17,6 +17,7 @@ const POLKADOT_COLORS = {
   pinkLight: '#FF2670',
 };
 
+// Quick Actions suggestions
 const getSuggestions = (stats: ValidatorStatistics) => {
   const arr: { title: string; description: string; severity: 'critical' | 'warning' | 'info' }[] = [];
   if (stats.performance < 50) {
