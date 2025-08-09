@@ -73,7 +73,7 @@ export const NetworkSelector: React.FC = () => {
         <option value="local">Local Node</option>
         <option value="polkadot">Polkadot</option>
         <option value="kusama">Kusama</option>
-        <option value="westend">Testnet</option>
+        <option value="westend">Westend</option>
         <option value="paseo">Paseo</option>
       </select>
     </div>
