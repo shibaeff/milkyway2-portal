@@ -33,72 +33,49 @@ export const EraStakersProvider: React.FC<EraStakersProviderProps> = ({ children
         setIsLoading(true);
         setError(null);
 
-        // Get current era and active validators
-        let currentEra;
         let activeValidatorsCount = 0;
         
+        // Method 1: Try to get session validators (most reliable for active validators)
         try {
-          currentEra = await api.query.staking.currentEra();
-          const era = (currentEra as any).unwrap().toNumber();
-          console.log(`Current era: ${era}`);
+          if (api.query.session && api.query.session.validators) {
+            const sessionValidators = await api.query.session.validators();
+            if (sessionValidators) {
+              activeValidatorsCount = (sessionValidators as any).length;
+              console.log(`Session validators count: ${activeValidatorsCount}`);
+            }
+          }
         } catch (err) {
-          console.log('Could not fetch current era:', err);
-          setActiveValidators(0);
-          return;
+          console.log('Session validators query not available:', err);
         }
 
-        // Get active validators using the correct API call
-        try {
-          // Method 1: Try to get active validators from the current era
-          if (api.query.staking.erasStakers) {
-            const currentEra = await api.query.staking.currentEra();
-            const era = (currentEra as any).unwrap().toNumber();
-            
-            // Get the active validators for the current era
-            const eraStakers = await api.query.staking.erasStakers(era);
-            if (eraStakers && (eraStakers as any).isSome) {
-              const stakersData = (eraStakers as any).unwrap();
-              // The validators are stored in the 'others' field
-              if (stakersData.others) {
-                activeValidatorsCount = stakersData.others.length;
-              }
-            }
-          }
-          
-          // If the above method didn't work, try alternative approaches
-          if (activeValidatorsCount === 0) {
-            // Method 2: Get validators and filter active ones
-            const validators = await api.query.staking.validators.entries();
-            activeValidatorsCount = validators.length;
-          }
-          
-          // Method 3: Try to get the validator set size
-          if (activeValidatorsCount === 0) {
-            try {
-              const validatorSet = await api.query.staking.validatorCount();
-              if (validatorSet) {
-                activeValidatorsCount = (validatorSet as any).toNumber();
-              }
-            } catch (err) {
-              console.log('Could not get validator count:', err);
-            }
-          }
-
-        } catch (err) {
-          console.log('Could not fetch active validators, trying fallback methods:', err);
-          
-          // Fallback: Get total validators count
+        // Method 2: If session validators didn't work, try staking validators
+        if (activeValidatorsCount === 0) {
           try {
             const validators = await api.query.staking.validators.entries();
             activeValidatorsCount = validators.length;
-          } catch (fallbackErr) {
-            console.log('Could not get validators count:', fallbackErr);
-            activeValidatorsCount = 0;
+            console.log(`Staking validators count: ${activeValidatorsCount}`);
+          } catch (err) {
+            console.log('Could not get staking validators:', err);
+          }
+        }
+
+        // Method 3: Try to get validator count from constants
+        if (activeValidatorsCount === 0) {
+          try {
+            if (api.consts.staking && api.consts.staking.maxValidatorsCount) {
+              const maxValidators = api.consts.staking.maxValidatorsCount;
+              if (maxValidators) {
+                activeValidatorsCount = (maxValidators as any).toNumber();
+                console.log(`Max validators count: ${activeValidatorsCount}`);
+              }
+            }
+          } catch (err) {
+            console.log('Could not get max validators count:', err);
           }
         }
 
         setActiveValidators(activeValidatorsCount);
-        console.log(`Active validators: ${activeValidatorsCount}`);
+        console.log(`Final active validators count: ${activeValidatorsCount}`);
 
       } catch (err) {
         console.error('Failed to fetch active validators:', err);

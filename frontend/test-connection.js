@@ -44,6 +44,41 @@ async function testNetworkConnection(networkName, endpointName, endpoint) {
     console.log(`📊 Total validators: ${validatorCount.toLocaleString()}`);
     console.log(`🏛️  Current era: ${currentEra.toString()}`);
     
+    // Test session validators (active validators)
+    let sessionValidatorsCount = 0;
+    try {
+      if (api.query.session && api.query.session.validators) {
+        const sessionValidators = await api.query.session.validators();
+        if (sessionValidators) {
+          sessionValidatorsCount = sessionValidators.length;
+          console.log(`🎯 Session validators (active): ${sessionValidatorsCount.toLocaleString()}`);
+        }
+      }
+    } catch (err) {
+      console.log(`❌ Session validators query failed: ${err.message}`);
+    }
+    
+    // Test era stakers
+    try {
+      const era = currentEra.unwrap().toNumber();
+      if (api.query.staking.erasStakers) {
+        // Get all era stakers entries (this gets all validators for the era)
+        const eraStakersEntries = await api.query.staking.erasStakers.entries();
+        console.log(`📈 Era stakers entries count: ${eraStakersEntries.length.toLocaleString()}`);
+        
+        // Also try to get a specific validator's era stakers (for testing)
+        if (validators.length > 0) {
+          const firstValidator = validators[0][0].args[0];
+          const specificEraStakers = await api.query.staking.erasStakers(era, firstValidator);
+          if (specificEraStakers && specificEraStakers.isSome) {
+            console.log(`📈 Specific validator era stakers: Found`);
+          }
+        }
+      }
+    } catch (err) {
+      console.log(`❌ Era stakers query failed: ${err.message}`);
+    }
+    
     // Calculate average commission
     let totalCommission = 0;
     let validCommissions = 0;
@@ -64,7 +99,7 @@ async function testNetworkConnection(networkName, endpointName, endpoint) {
     console.log(`💰 Average commission (sample): ${avgCommission.toFixed(2)}%`);
     
     await api.disconnect();
-    return { success: true, validatorCount, avgCommission };
+    return { success: true, validatorCount, sessionValidatorsCount, avgCommission };
     
   } catch (error) {
     console.log(`❌ Failed to connect: ${error.message}`);
