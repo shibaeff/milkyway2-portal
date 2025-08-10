@@ -2,7 +2,6 @@ import { useApi } from '../contexts/Api';
 import { useValidators } from '../contexts/Validators/ValidatorEntries';
 import { CardWrapper } from '../library/Card/Wrappers';
 import { ValidatorList } from '../library/ValidatorList';
-import { ValidatorStatsSummary } from '../components/ValidatorStatsSummary';
 import { useTranslation } from 'react-i18next';
 import { Page, Stat } from '../ui-core/base';
 import { ActiveValidators } from './Stats/ActiveValidators';
@@ -17,16 +16,16 @@ export const AllValidators = () => {
 
   if (apiError) {
     return (
-      <div style={{ 
-        padding: '2rem', 
+      <div style={{
+        padding: '2rem',
         textAlign: 'center',
         background: 'linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%)',
         borderRadius: '12px',
         border: '1px solid #f5c6cb',
         margin: '1rem 0'
       }}>
-        <div style={{ 
-          fontSize: '2rem', 
+        <div style={{
+          fontSize: '2rem',
           marginBottom: '1rem'
         }}>
           ❌
@@ -40,16 +39,16 @@ export const AllValidators = () => {
 
   if (!isReady) {
     return (
-      <div className="loading-container" style={{ 
-        padding: '2rem', 
+      <div className="loading-container" style={{
+        padding: '2rem',
         textAlign: 'center',
         background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
         borderRadius: '12px',
         border: '1px solid #dee2e6',
         margin: '1rem 0'
       }}>
-        <div style={{ 
-          fontSize: '2rem', 
+        <div style={{
+          fontSize: '2rem',
           marginBottom: '1rem',
           animation: 'pulse 2s infinite'
         }}>
@@ -66,9 +65,9 @@ export const AllValidators = () => {
           padding: '1rem',
           marginTop: '1rem'
         }}>
-          <p style={{ 
-            color: '#856404', 
-            margin: 0, 
+          <p style={{
+            color: '#856404',
+            margin: 0,
             fontSize: '0.9rem',
             fontWeight: '500'
           }}>
@@ -86,22 +85,20 @@ export const AllValidators = () => {
         <TotalValidators />
         <AverageCommission />
       </Stat.Row>
-      
-      <ValidatorStatsSummary />
-      
+
       <Page.Row>
         <CardWrapper>
           {isLoading ? (
-            <div className="loading-container" style={{ 
-              padding: '2rem', 
+            <div className="loading-container" style={{
+              padding: '2rem',
               textAlign: 'center',
               background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
               borderRadius: '12px',
               border: '1px solid #dee2e6',
               margin: '1rem 0'
             }}>
-              <div style={{ 
-                fontSize: '2rem', 
+              <div style={{
+                fontSize: '2rem',
                 marginBottom: '1rem',
                 animation: 'pulse 2s infinite'
               }}>
@@ -109,7 +106,7 @@ export const AllValidators = () => {
               </div>
               <h3 style={{ color: '#495057', marginBottom: '1rem' }}>Loading Validator Data...</h3>
               <p style={{ color: '#6c757d', marginBottom: '1rem' }}>
-                Fetching comprehensive validator information from the Polkadot network.
+                Fetching comprehensive validator information from the network.
               </p>
               <div style={{
                 background: '#fff3cd',
@@ -118,9 +115,9 @@ export const AllValidators = () => {
                 padding: '1rem',
                 marginTop: '1rem'
               }}>
-                <p style={{ 
-                  color: '#856404', 
-                  margin: 0, 
+                <p style={{
+                  color: '#856404',
+                  margin: 0,
                   fontSize: '0.9rem',
                   fontWeight: '500'
                 }}>
@@ -129,16 +126,16 @@ export const AllValidators = () => {
               </div>
             </div>
           ) : validatorsError ? (
-            <div style={{ 
-              padding: '2rem', 
+            <div style={{
+              padding: '2rem',
               textAlign: 'center',
               background: 'linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%)',
               borderRadius: '12px',
               border: '1px solid #f5c6cb',
               margin: '1rem 0'
             }}>
-              <div style={{ 
-                fontSize: '2rem', 
+              <div style={{
+                fontSize: '2rem',
                 marginBottom: '1rem'
               }}>
                 ❌
@@ -147,16 +144,16 @@ export const AllValidators = () => {
               <p style={{ color: '#721c24' }}>{validatorsError}</p>
             </div>
           ) : validators.length === 0 ? (
-            <div style={{ 
-              padding: '2rem', 
+            <div style={{
+              padding: '2rem',
               textAlign: 'center',
               background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
               borderRadius: '12px',
               border: '1px solid #dee2e6',
               margin: '1rem 0'
             }}>
-              <div style={{ 
-                fontSize: '2rem', 
+              <div style={{
+                fontSize: '2rem',
                 marginBottom: '1rem'
               }}>
                 🔍
@@ -183,11 +180,11 @@ export const AllValidators = () => {
               allowMoreCols
               allowFilters
               allowSearch
-              itemsPerPage={50}
+              itemsPerPage={50} // show 50 initially
             />
           )}
         </CardWrapper>
       </Page.Row>
     </>
   );
-}; 
+};
